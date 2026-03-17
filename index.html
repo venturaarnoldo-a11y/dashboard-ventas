@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Radiadores Frontera — Dashboard de Ventas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f5f0e6;color:#1e293b;min-height:100vh}
+.header{background:linear-gradient(135deg,#ffffff 0%,#f0fdf4 100%);padding:20px 30px;border-bottom:3px solid #0d9488;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.header-left{display:flex;align-items:center;gap:16px}
+.header-logo{height:64px;width:auto}
+.header h1{font-size:22px;color:#0d9488;font-weight:700;letter-spacing:1px}
+.header .subtitle{color:#64748b;font-size:13px}
+.controls{display:flex;gap:12px;padding:14px 30px;background:#ffffff;border-bottom:1px solid #e2e8f0;flex-wrap:wrap;align-items:center}
+.controls label{color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+.controls select{background:#f8fafc;color:#1e293b;border:1px solid #cbd5e1;border-radius:6px;padding:6px 12px;font-size:13px;cursor:pointer}
+.controls select:focus{border-color:#0d9488;outline:none;box-shadow:0 0 0 2px rgba(13,148,136,.15)}
+.tabs{display:flex;gap:0;padding:0 30px;background:#ffffff;border-bottom:1px solid #e2e8f0}
+.tab{padding:12px 24px;color:#94a3b8;cursor:pointer;font-size:13px;font-weight:600;border-bottom:2px solid transparent;transition:all .2s}
+.tab:hover{color:#1e293b}
+.tab.active{color:#0d9488;border-bottom-color:#0d9488}
+.tab-content{display:none}.tab-content.active{display:block}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;padding:18px 30px}
+.kpi{background:#ffffff;border-radius:10px;padding:16px;border-top:4px solid #0d9488;position:relative;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.kpi.green{border-top-color:#16a34a}.kpi.red{border-top-color:#ef4444}.kpi.blue{border-top-color:#2563eb}.kpi.purple{border-top-color:#7c3aed}.kpi.cyan{border-top-color:#0891b2}.kpi.yellow{border-top-color:#ca8a04}.kpi.teal{border-top-color:#0d9488}
+.kpi .label{font-size:10px;color:#64748b;text-transform:uppercase;font-weight:600;letter-spacing:0.5px}
+.kpi .value{font-size:24px;font-weight:700;margin:3px 0;color:#0f172a}
+.kpi .change{font-size:11px;font-weight:600}
+.kpi .change.up{color:#16a34a}.kpi .change.down{color:#ef4444}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:0 30px 18px}
+.chart-card{background:#ffffff;border-radius:10px;padding:18px;min-height:320px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.chart-card.full{grid-column:1/-1}
+.chart-card h3{color:#0d9488;font-size:13px;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px}
+.table-card{background:#ffffff;border-radius:10px;padding:18px;margin:0 30px 18px;overflow-x:auto;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.table-card h3{color:#0d9488;font-size:13px;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#f0fdfa;color:#0d9488;padding:8px 10px;text-align:left;font-weight:600;font-size:10px;text-transform:uppercase;position:sticky;top:0;z-index:2;border-bottom:2px solid #0d9488}
+td{padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#334155}
+tr:nth-child(even){background:#f8fafc}
+tr:hover{background:#f0fdfa}
+tr.region-header{background:#f0fdfa !important}
+tr.region-header td{color:#0d9488;font-weight:700;font-size:12px;padding:10px;border-top:2px solid #cbd5e1}
+tr.subtotal td{font-weight:700;background:rgba(13,148,136,.06) !important;border-top:1px solid #cbd5e1;color:#0f172a}
+tr.grand-total td{font-weight:700;background:rgba(13,148,136,.12) !important;color:#0d9488;font-size:13px;border-top:2px solid #0d9488}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.pos{color:#16a34a}.neg{color:#ef4444}
+.section-title{padding:18px 30px 8px;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:700}
+.mini-bar{display:inline-block;height:8px;border-radius:4px;margin-left:6px;vertical-align:middle}
+footer{text-align:center;padding:20px;color:#94a3b8;font-size:11px;border-top:1px solid #e2e8f0;margin-top:20px;background:#ffffff}
+.projection-badge{display:inline-block;background:#ca8a04;color:#ffffff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px}
+@media(max-width:900px){.charts-grid{grid-template-columns:1fr}.kpi-row{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:500px){.kpi-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-left">
+    <svg class="header-logo" viewBox="0 0 280 170" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="blG" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#303fa0"/><stop offset="100%" stop-color="#1a2670"/></linearGradient>
+        <linearGradient id="rdG" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#e82020"/><stop offset="100%" stop-color="#c01010"/></linearGradient>
+        <filter id="sh" x="-5%" y="-5%" width="115%" height="115%"><feDropShadow dx="1" dy="1" stdDeviation="1" flood-color="#666" flood-opacity="0.3"/></filter>
+      </defs>
+      <!-- Blue circular arrow (counterclockwise, main) -->
+      <path d="M178,28 A58,58 0 1,0 100,92" fill="none" stroke="url(#blG)" stroke-width="16" stroke-linecap="round" filter="url(#sh)"/>
+      <polygon points="175,12 192,30 166,34" fill="#1a2670"/>
+      <!-- Red curved arrow (clockwise, inner) -->
+      <path d="M88,88 A42,42 0 0,1 160,40" fill="none" stroke="url(#rdG)" stroke-width="12" stroke-linecap="round" filter="url(#sh)"/>
+      <polygon points="84,102 78,80 98,88" fill="#c01010"/>
+      <!-- Speed lines -->
+      <line x1="52" y1="46" x2="118" y2="46" stroke="#1a2670" stroke-width="3.5" stroke-linecap="round" opacity="0.7"/>
+      <line x1="46" y1="57" x2="124" y2="57" stroke="#1a2670" stroke-width="3.5" stroke-linecap="round" opacity="0.8"/>
+      <line x1="52" y1="68" x2="118" y2="68" stroke="#1a2670" stroke-width="3.5" stroke-linecap="round" opacity="0.7"/>
+      <!-- "Radiadores" text -->
+      <text x="140" y="130" font-family="Arial Black,Impact,sans-serif" font-size="34" font-weight="900" fill="#1a2670" text-anchor="middle" letter-spacing="0.5" filter="url(#sh)">Radiadores</text>
+      <!-- Red bar with "Frontera" -->
+      <rect x="60" y="138" width="160" height="26" rx="3" fill="#e82020" filter="url(#sh)"/>
+      <text x="140" y="157" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="4">F r o n t e r a</text>
+    </svg>
+    <div>
+      <h1>RADIADORES FRONTERA</h1>
+      <div class="subtitle">Dashboard de Ventas — Datos actualizados desde Fuse5 ERP</div>
+    </div>
+  </div>
+  <div style="text-align:right">
+    <div class="subtitle" id="dateRange"></div>
+    <div class="subtitle" id="lastUpdate"></div>
+  </div>
+</div>
+
+<div class="controls">
+  <div><label>Mes</label><br><select id="selMonth"></select></div>
+  <div><label>Sucursal</label><br><select id="selLocation"><option value="ALL">Todas</option></select></div>
+  <div><label>Comparar vs</label><br><select id="selCompare"><option value="prev_month">Mes anterior</option><option value="prev_year" selected>Mismo mes año anterior</option></select></div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="resumen">Resumen</div>
+  <div class="tab" data-tab="comparativo">Comparativo por Plaza</div>
+  <div class="tab" data-tab="clientes">Top Clientes</div>
+  <div class="tab" data-tab="lineas">Lineas de Producto</div>
+  <div class="tab" data-tab="tendencia">Tendencia Diaria</div>
+</div>
+
+<!-- TAB: RESUMEN -->
+<div class="tab-content active" id="tab-resumen">
+  <div class="kpi-row" id="kpis"></div>
+  <div class="section-title">Tendencia de ventas mensuales</div>
+  <div class="charts-grid">
+    <div class="chart-card full" style="min-height:300px"><h3>Ventas, Costo y Margen por Mes</h3><canvas id="chartMonthly"></canvas></div>
+    <div class="chart-card"><h3>Ventas por Sucursal</h3><canvas id="chartLocations"></canvas></div>
+    <div class="chart-card"><h3>Ventas por Region</h3><canvas id="chartRegions"></canvas></div>
+    <div class="chart-card"><h3>Margen % por Sucursal</h3><canvas id="chartMarginLoc"></canvas></div>
+    <div class="chart-card"><h3>Composicion de Ventas: Top Lineas</h3><canvas id="chartLinesPie"></canvas></div>
+  </div>
+</div>
+
+<!-- TAB: COMPARATIVO POR PLAZA -->
+<div class="tab-content" id="tab-comparativo">
+  <div class="kpi-row" id="kpis2"></div>
+  <div class="section-title">Comparativo por Plaza — Estilo Reporte</div>
+  <div class="table-card">
+    <h3 id="tblCompTitle">Comparativo Mensual por Sucursal</h3>
+    <div style="max-height:700px;overflow-y:auto"><table id="tblComp"><thead><tr>
+      <th>Plaza</th>
+      <th class="num" id="th-prev">Vta Mes Ant.</th><th class="num">GP$</th><th class="num">GP%</th>
+      <th class="num" id="th-pyear">Vta Año Ant.</th><th class="num">GP$</th><th class="num">GP%</th>
+      <th class="num" id="th-curr">Vta Actual</th><th class="num">GP$</th><th class="num">GP%</th>
+      <th class="num">Proy Venta</th><th class="num">Proy GP$</th><th class="num">Proy GP%</th><th class="num">Var $ vs Comp</th><th class="num">Var %</th>
+    </tr></thead><tbody></tbody></table></div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-card full"><h3>Variacion por Sucursal vs Comparacion</h3><canvas id="chartVarLoc"></canvas></div>
+  </div>
+</div>
+
+<!-- TAB: TOP CLIENTES -->
+<div class="tab-content" id="tab-clientes">
+  <div class="section-title">Top 25 Clientes del Mes Seleccionado</div>
+  <div class="table-card">
+    <h3 id="tblCustTitle">Ranking de Clientes</h3>
+    <div style="max-height:600px;overflow-y:auto"><table id="tblCustomers"><thead><tr>
+      <th>#</th><th>Cliente</th><th>Cuenta</th><th>Sucursal</th>
+      <th class="num">$ Venta</th><th class="num">$ Costo</th><th class="num">GP $</th><th class="num">GP %</th><th class="num">Txns</th>
+    </tr></thead><tbody></tbody></table></div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-card"><h3>Top 10 Clientes — Venta</h3><canvas id="chartCustBar"></canvas></div>
+    <div class="chart-card"><h3>Concentracion de Clientes</h3><canvas id="chartCustConc"></canvas></div>
+  </div>
+  <div class="section-title">Top 50 Clientes Historico (acumulado todo el periodo)</div>
+  <div class="table-card">
+    <h3>Clientes Historicos</h3>
+    <div style="max-height:500px;overflow-y:auto"><table id="tblCustHist"><thead><tr>
+      <th>#</th><th>Cliente</th><th>Sucursal</th><th class="num">$ Venta Total</th><th class="num">$ Costo</th><th class="num">GP %</th><th class="num">Txns</th>
+    </tr></thead><tbody></tbody></table></div>
+  </div>
+</div>
+
+<!-- TAB: LINEAS DE PRODUCTO -->
+<div class="tab-content" id="tab-lineas">
+  <div class="section-title">Principales Lineas de Producto — Mes Seleccionado</div>
+  <div class="charts-grid">
+    <div class="chart-card"><h3>Top 15 Lineas — Venta</h3><canvas id="chartLinesBar"></canvas></div>
+    <div class="chart-card"><h3>Top 15 Lineas — Margen %</h3><canvas id="chartLinesMargin"></canvas></div>
+  </div>
+  <div class="table-card">
+    <h3 id="tblLinesTitle">Detalle de Lineas de Producto</h3>
+    <div style="max-height:500px;overflow-y:auto"><table id="tblLines"><thead><tr>
+      <th>#</th><th>Linea</th><th class="num">$ Venta</th><th class="num">$ Costo</th><th class="num">GP $</th><th class="num">GP %</th><th class="num">Piezas</th>
+    </tr></thead><tbody></tbody></table></div>
+  </div>
+  <div class="section-title">Lineas de Producto — Acumulado Historico</div>
+  <div class="table-card">
+    <h3>Top 30 Lineas Historicas</h3>
+    <div style="max-height:400px;overflow-y:auto"><table id="tblLinesHist"><thead><tr>
+      <th>#</th><th>Linea</th><th class="num">$ Venta</th><th class="num">$ Costo</th><th class="num">GP %</th><th class="num">Piezas</th>
+    </tr></thead><tbody></tbody></table></div>
+  </div>
+</div>
+
+<!-- TAB: TENDENCIA DIARIA -->
+<div class="tab-content" id="tab-tendencia">
+  <div class="kpi-row" id="kpis3"></div>
+  <div class="section-title">Ventas Diarias del Mes Seleccionado</div>
+  <div class="charts-grid">
+    <div class="chart-card full" style="min-height:280px"><h3>Venta Diaria y Acumulado</h3><canvas id="chartDaily"></canvas></div>
+    <div class="chart-card full" style="min-height:280px"><h3>Comparacion Diaria: Mes Actual vs Periodo Anterior</h3><canvas id="chartDailyComp"></canvas></div>
+  </div>
+</div>
+
+<footer>Radiadores Frontera — Dashboard automatizado desde Fuse5 ERP | <span id="footerRange"></span></footer>
+
+<script>
+let D = null;
+
+async function loadDashboard() {
+  try {
+    const resp = await fetch('data.json');
+    D = await resp.json();
+  } catch(e) {
+    document.body.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif"><h2>Error cargando datos</h2><p>'+e.message+'</p></div>';
+    return;
+  }
+
+  // === Original dashboard code ===
+  const fmt = n => n < 0 ? '(' + '$' + Math.abs(Math.round(n)).toLocaleString('es-MX') + ')' : '$' + Math.round(n).toLocaleString('es-MX');
+const fmtK = n => {
+  if(Math.abs(n)>=1e6) return '$' + (n/1e6).toFixed(1) + 'M';
+  if(Math.abs(n)>=1e3) return '$' + (n/1e3).toFixed(0) + 'K';
+  return fmt(n);
+};
+const pct = n => (n >= 0 ? '+' : '') + n.toFixed(1) + '%';
+const months = Object.keys(D.monthly_totals).sort();
+const MN = {'01':'Ene','02':'Feb','03':'Mar','04':'Abr','05':'May','06':'Jun','07':'Jul','08':'Ago','09':'Sep','10':'Oct','11':'Nov','12':'Dic'};
+const mLabel = m => {const [y,mo]=m.split('-'); return MN[mo]+' '+y;};
+const mShort = m => {const [y,mo]=m.split('-'); return MN[mo]+' '+y.slice(2);};
+
+// Region config — built dynamically from data
+const REGION_COLORS = {
+  "Cd Juarez": "#3b82f6",
+  "Labor": "#0d9488",
+  "Chihuahua": "#22c55e",
+  "Monterrey": "#a855f7",
+  "Otros": "#eab308"
+};
+const REGIONS = {};
+// Enforce order: Cd Juarez, Labor, Chihuahua, Monterrey, Otros
+const REGION_ORDER = ["Cd Juarez", "Labor", "Chihuahua", "Monterrey", "Otros"];
+for(const r of REGION_ORDER) {
+  if(D.region_groups[r]) {
+    REGIONS[r] = {color: REGION_COLORS[r] || "#64748b", locs: D.region_groups[r]};
+  }
+}
+
+function getRegion(loc) {
+  for(const [r, cfg] of Object.entries(REGIONS)) {
+    if(cfg.locs.includes(loc)) return r;
+  }
+  return "Otros";
+}
+
+const selMonth = document.getElementById('selMonth');
+const selLoc = document.getElementById('selLocation');
+const selCmp = document.getElementById('selCompare');
+
+months.slice().reverse().forEach(m => {
+  const opt = document.createElement('option');
+  opt.value = m; opt.text = mLabel(m);
+  selMonth.appendChild(opt);
+});
+D.all_locations.forEach(l => {
+  const opt = document.createElement('option');
+  opt.value = l; opt.text = l;
+  selLoc.appendChild(opt);
+});
+
+document.getElementById('dateRange').textContent = 'Datos: ' + D.date_range.start + ' a ' + D.date_range.end;
+document.getElementById('lastUpdate').textContent = 'Actualizado: ' + new Date().toLocaleDateString('es-MX');
+document.getElementById('footerRange').textContent = 'Datos: ' + D.date_range.start + ' a ' + D.date_range.end;
+
+// Tab switching
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('tab-' + t.dataset.tab).classList.add('active');
+    update();
+  });
+});
+
+function getCompMonth(m, mode) {
+  const [y,mo] = m.split('-');
+  if (mode === 'prev_year') return (parseInt(y)-1) + '-' + mo;
+  const d = new Date(parseInt(y), parseInt(mo)-2, 1);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+
+function getPrevMonth(m) {
+  const [y,mo] = m.split('-');
+  const d = new Date(parseInt(y), parseInt(mo)-2, 1);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+
+function getPrevYearMonth(m) {
+  const [y,mo] = m.split('-');
+  return (parseInt(y)-1) + '-' + mo;
+}
+
+// Get the last calendar day with data in a given month
+function getMaxDay(m) {
+  let maxD = 0;
+  for(const day of Object.keys(D.daily_sales)) {
+    if(day.startsWith(m)) {
+      const d = parseInt(day.split('-')[2]);
+      if(d > maxD) maxD = d;
+    }
+  }
+  return maxD;
+}
+
+// Sum daily data for a month up to maxDay (inclusive), optionally filtered by location
+function sumPeriod(m, maxDay, loc) {
+  const [y, mo] = m.split('-');
+  let sell=0, cost=0, sell_qty=0, return_qty=0, transactions=0;
+  for(let d=1; d<=maxDay; d++) {
+    const key = y+'-'+mo+'-'+String(d).padStart(2,'0');
+    if(loc === 'ALL') {
+      const dd = D.daily_sales[key];
+      if(dd) { sell+=dd.sell; cost+=dd.cost; sell_qty+=dd.qty; }
+    } else {
+      const dl = (D.daily_by_location[key]||{})[loc];
+      if(dl) { sell+=dl.sell; cost+=dl.cost; sell_qty+=dl.sell_qty; return_qty+=dl.return_qty; }
+    }
+  }
+  if(sell===0 && cost===0) return null;
+  const margin = sell ? ((sell-cost)/sell*100) : 0;
+  return { sell, cost, margin_pct: Math.round(margin*10)/10, profit: sell-cost, sell_qty, return_qty };
+}
+
+// Sum daily data for a month up to maxDay, grouped by location (returns object loc->data)
+function sumPeriodByLoc(m, maxDay) {
+  const [y, mo] = m.split('-');
+  const result = {};
+  for(let d=1; d<=maxDay; d++) {
+    const key = y+'-'+mo+'-'+String(d).padStart(2,'0');
+    const dayLocs = D.daily_by_location[key];
+    if(!dayLocs) continue;
+    for(const [loc, dd] of Object.entries(dayLocs)) {
+      if(!result[loc]) result[loc] = {sell:0,cost:0,sell_qty:0,return_qty:0};
+      result[loc].sell += dd.sell;
+      result[loc].cost += dd.cost;
+      result[loc].sell_qty += dd.sell_qty;
+      result[loc].return_qty += dd.return_qty;
+    }
+  }
+  // Add margin
+  for(const loc of Object.keys(result)) {
+    const d = result[loc];
+    d.margin_pct = d.sell ? Math.round((d.sell-d.cost)/d.sell*1000)/10 : 0;
+    d.profit = d.sell - d.cost;
+  }
+  return result;
+}
+
+// Full month data (used for trend charts where we want the complete picture)
+function getMonthData(m, loc) {
+  if (loc === 'ALL') return D.monthly_totals[m] || null;
+  return (D.monthly_by_location[m] || {})[loc] || null;
+}
+
+// Count working days (Mon-Sat, no Sundays) in a range
+function countWorkDays(y, mo, fromDay, toDay) {
+  let count = 0;
+  for(let d=fromDay; d<=toDay; d++) {
+    const dt = new Date(parseInt(y), parseInt(mo)-1, d);
+    if(dt.getDay() !== 0) count++; // 0=Sunday
+  }
+  return count;
+}
+
+// Calculate projection for partial month using business days (Mon-Sat)
+function getProjection(m) {
+  const [y, mo] = m.split('-');
+  const daysInMonth = new Date(parseInt(y), parseInt(mo), 0).getDate();
+  const maxDay = getMaxDay(m);
+  if(maxDay === 0) return null;
+  const data = sumPeriod(m, maxDay, 'ALL');
+  if(!data) return null;
+  const workElapsed = countWorkDays(y, mo, 1, maxDay);
+  const workTotal = countWorkDays(y, mo, 1, daysInMonth);
+  if(workElapsed === 0) return null;
+  const sellProj = data.sell / workElapsed * workTotal;
+  const costProj = data.cost / workElapsed * workTotal;
+  const gpProj = sellProj - costProj;
+  const gpPctProj = sellProj ? (gpProj / sellProj * 100) : 0;
+  return {
+    sell: sellProj, cost: costProj, gp: gpProj, gp_pct: gpPctProj,
+    days_elapsed: maxDay, days_total: daysInMonth,
+    work_elapsed: workElapsed, work_total: workTotal
+  };
+}
+
+let charts = {};
+function destroyChart(name) { if(charts[name]) { charts[name].destroy(); delete charts[name]; } }
+
+function update() {
+  const m = selMonth.value;
+  const loc = selLoc.value;
+  const cmpMode = selCmp.value;
+  const cmpMonth = getCompMonth(m, cmpMode);
+  const prevM = getPrevMonth(m);
+  const prevY = getPrevYearMonth(m);
+
+  // SAME-PERIOD comparison: only compare up to the last day with data in selected month
+  const maxDay = getMaxDay(m);
+  const curr = sumPeriod(m, maxDay, loc);
+  const prev = sumPeriod(cmpMonth, maxDay, loc);
+  const proj = getProjection(m);
+  const periodLabel = '(dias 1-'+maxDay+')';
+
+  // ===== RESUMEN TAB =====
+  const kpiDiv = document.getElementById('kpis');
+  const sellVar = (curr && prev && prev.sell) ? ((curr.sell - prev.sell)/prev.sell*100) : 0;
+  const profitCurr = curr ? curr.sell - curr.cost : 0;
+  const profitPrev = prev ? prev.sell - prev.cost : 0;
+  const profitVar = profitPrev ? ((profitCurr - profitPrev)/profitPrev*100) : 0;
+  const cmpLabel = cmpMode==='prev_year'?'año ant.':'mes ant.';
+
+  kpiDiv.innerHTML = `
+    <div class="kpi teal"><div class="label">Ventas ${periodLabel}</div><div class="value">${curr ? fmtK(curr.sell) : '-'}</div>
+      <div class="change ${sellVar>=0?'up':'down'}">${prev ? pct(sellVar)+' vs '+cmpLabel+' '+periodLabel : 'Sin comparacion'}</div></div>
+    <div class="kpi yellow"><div class="label">Utilidad Bruta (GP$)</div><div class="value">${curr ? fmtK(profitCurr) : '-'}</div>
+      <div class="change ${profitVar>=0?'up':'down'}">${prev ? pct(profitVar)+' vs '+cmpLabel : '-'}</div></div>
+    <div class="kpi green"><div class="label">Margen %</div><div class="value">${curr ? curr.margin_pct.toFixed(1)+'%' : '-'}</div>
+      <div class="change ${(curr?.margin_pct||0)>=(prev?.margin_pct||0)?'up':'down'}">${prev ? pct((curr?.margin_pct||0)-(prev?.margin_pct||0))+' pts' : '-'}</div></div>
+    <div class="kpi blue"><div class="label">Piezas Vendidas</div><div class="value">${curr ? curr.sell_qty.toLocaleString('es-MX') : '-'}</div>
+      <div class="change">${curr ? 'Devol: '+Math.abs(curr.return_qty||0).toLocaleString('es-MX') : ''}</div></div>
+    <div class="kpi cyan"><div class="label">Proyeccion Mes</div><div class="value">${proj ? fmtK(proj.sell) : '-'}</div>
+      <div class="change">${proj ? proj.work_elapsed+'/'+proj.work_total+' dias lab.' : '-'}</div></div>
+    <div class="kpi ${sellVar>=0?'green':'red'}"><div class="label">Var. $ vs ${cmpLabel} ${periodLabel}</div><div class="value">${(curr && prev) ? fmtK(curr.sell - prev.sell) : '-'}</div>
+      <div class="change">${prev ? 'Comp: '+fmtK(prev.sell)+' '+periodLabel : 'Sin datos'}</div></div>
+  `;
+
+  // Monthly trend chart
+  destroyChart('monthly');
+  const last18 = months.slice(-18);
+  charts.monthly = new Chart(document.getElementById('chartMonthly'), {
+    type: 'bar',
+    data: {
+      labels: last18.map(m => mShort(m)),
+      datasets: [
+        {label:'Venta', data: last18.map(m => getMonthData(m,loc)?.sell||0), backgroundColor:'rgba(59,130,246,.8)', borderRadius:4, order:2},
+        {label:'Costo', data: last18.map(m => getMonthData(m,loc)?.cost||0), backgroundColor:'rgba(148,163,184,.5)', borderRadius:4, order:3},
+        {label:'Margen %', data: last18.map(m => getMonthData(m,loc)?.margin_pct||0), type:'line', borderColor:'#f59e0b', backgroundColor:'transparent', yAxisID:'y1', pointRadius:3, pointBackgroundColor:'#f59e0b', borderWidth:2, order:1}
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#64748b',font:{size:11}}}},
+      scales:{
+        x:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'#e2e8f0'}},
+        y:{ticks:{color:'#475569',callback:v=>fmtK(v)},grid:{color:'#e2e8f0'}},
+        y1:{position:'right',min:0,max:50,ticks:{color:'#f59e0b',callback:v=>v+'%'},grid:{display:false}}
+      }
+    }
+  });
+  document.getElementById('chartMonthly').parentElement.style.height='300px';
+
+  // Sales by location bar
+  destroyChart('locBar');
+  const locData = D.monthly_by_location[m] || {};
+  const locEntries = Object.entries(locData).sort((a,b) => b[1].sell - a[1].sell);
+  charts.locBar = new Chart(document.getElementById('chartLocations'), {
+    type: 'bar',
+    data: {
+      labels: locEntries.map(e => e[0]),
+      datasets: [
+        {label:'Venta', data: locEntries.map(e => e[1].sell), backgroundColor: locEntries.map(e => {const r=getRegion(e[0]); return REGIONS[r]?.color||'#3b82f6';}), borderRadius:3}
+      ]
+    },
+    options: {
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#475569',callback:v=>fmtK(v)},grid:{color:'#e2e8f0'}},
+        y:{ticks:{color:'#64748b',font:{size:10}},grid:{display:false}}
+      }
+    }
+  });
+  document.getElementById('chartLocations').parentElement.style.height=Math.max(350, locEntries.length*28)+'px';
+
+  // Region donut
+  destroyChart('regionDonut');
+  const regData = D.monthly_by_region[m] || {};
+  const regionNames = Object.keys(REGIONS);
+  charts.regionDonut = new Chart(document.getElementById('chartRegions'), {
+    type: 'doughnut',
+    data: {
+      labels: regionNames,
+      datasets: [{
+        data: regionNames.map(r => regData[r]?.sell || 0),
+        backgroundColor: regionNames.map(r => REGIONS[r].color),
+        borderWidth: 2, borderColor: '#ffffff'
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'bottom',labels:{color:'#64748b',font:{size:11},padding:15}},
+        tooltip:{callbacks:{label:ctx => ctx.label+': '+fmtK(ctx.raw)+' ('+((ctx.raw/(regionNames.reduce((s,r)=>(s+(regData[r]?.sell||0)),0))||1)*100).toFixed(1)+'%)'}}
+      }
+    }
+  });
+  document.getElementById('chartRegions').parentElement.style.height='350px';
+
+  // Margin by location
+  destroyChart('marginLoc');
+  const locMargins = locEntries.filter(e => e[1].sell > 0);
+  charts.marginLoc = new Chart(document.getElementById('chartMarginLoc'), {
+    type: 'bar',
+    data: {
+      labels: locMargins.map(e => e[0]),
+      datasets: [{
+        label:'Margen %', data: locMargins.map(e => e[1].margin_pct),
+        backgroundColor: locMargins.map(e => e[1].margin_pct >= 25 ? '#22c55e' : e[1].margin_pct >= 20 ? '#f59e0b' : '#ef4444'),
+        borderRadius:3
+      }]
+    },
+    options: {
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{min:0, max:50, ticks:{color:'#475569',callback:v=>v+'%'},grid:{color:'#e2e8f0'}},
+        y:{ticks:{color:'#64748b',font:{size:10}},grid:{display:false}}
+      }
+    }
+  });
+  document.getElementById('chartMarginLoc').parentElement.style.height=Math.max(350, locMargins.length*28)+'px';
+
+  // Lines pie
+  destroyChart('linesPie');
+  const lcData = (D.top_line_codes[m] || []).slice(0,8);
+  const pieColors = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#a855f7','#06b6d4','#ec4899','#64748b'];
+  charts.linesPie = new Chart(document.getElementById('chartLinesPie'), {
+    type: 'doughnut',
+    data: {
+      labels: lcData.map(e => e.line_code),
+      datasets: [{data: lcData.map(e => e.sell), backgroundColor: pieColors, borderWidth:2, borderColor:'#1e293b'}]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{color:'#64748b',font:{size:10},padding:12}},
+        tooltip:{callbacks:{label:ctx=>ctx.label+': '+fmtK(ctx.raw)}}
+      }
+    }
+  });
+  document.getElementById('chartLinesPie').parentElement.style.height='350px';
+
+  // ===== COMPARATIVO TAB =====
+  updateComparativo(m, prevM, prevY, cmpMonth, cmpMode);
+
+  // ===== CLIENTES TAB =====
+  updateClientes(m);
+
+  // ===== LINEAS TAB =====
+  updateLineas(m);
+
+  // ===== TENDENCIA DIARIA TAB =====
+  updateDaily(m, cmpMonth, cmpMode);
+}
+
+function updateComparativo(m, prevM, prevY, cmpMonth, cmpMode) {
+  const [yr, mo] = m.split('-');
+  const maxDay = getMaxDay(m);
+  const pLabel = '(1-'+maxDay+')';
+  document.getElementById('th-prev').textContent = 'Vta ' + mShort(prevM) + ' ' + pLabel;
+  document.getElementById('th-pyear').textContent = 'Vta ' + mShort(prevY) + ' ' + pLabel;
+  document.getElementById('th-curr').textContent = 'Vta ' + mShort(m) + ' ' + pLabel;
+  document.getElementById('tblCompTitle').textContent = 'Comparativo — ' + mLabel(m) + ' — Mismo periodo ' + pLabel;
+
+  const tbody = document.querySelector('#tblComp tbody');
+  tbody.innerHTML = '';
+  const proj = getProjection(m);
+
+  // Get same-period data by location
+  const currByLoc = sumPeriodByLoc(m, maxDay);
+  const prevByLoc = sumPeriodByLoc(prevM, maxDay);
+  const pyByLoc = sumPeriodByLoc(prevY, maxDay);
+
+  let grandSell=0, grandCost=0, grandPrevSell=0, grandPrevCost=0, grandPYSell=0, grandPYCost=0;
+  const varData = [];
+
+  for(const [region, cfg] of Object.entries(REGIONS)) {
+    let rSell=0, rCost=0, rPrevSell=0, rPrevCost=0, rPYSell=0, rPYCost=0;
+    let regionRows = '';
+
+    const locs = cfg.locs.filter(l => D.all_locations.includes(l));
+    locs.forEach(loc => {
+      const c = currByLoc[loc] || {sell:0,cost:0,margin_pct:0};
+      const p = prevByLoc[loc] || {sell:0,cost:0,margin_pct:0};
+      const py = pyByLoc[loc] || {sell:0,cost:0,margin_pct:0};
+      // Skip locations with no data in any of the 3 periods
+      if(c.sell === 0 && p.sell === 0 && py.sell === 0) return;
+      const comp = cmpMode === 'prev_year' ? py : p;
+      const cGP = c.sell - c.cost;
+      const pGP = p.sell - p.cost;
+      const pyGP = py.sell - py.cost;
+      const cMargin = c.sell ? (cGP/c.sell*100) : 0;
+      const pMargin = p.sell ? (pGP/p.sell*100) : 0;
+      const pyMargin = py.sell ? (pyGP/py.sell*100) : 0;
+      const varD = c.sell - comp.sell;
+      const varP = comp.sell ? (varD/comp.sell*100) : 0;
+      const locProjSell = proj ? (c.sell / proj.work_elapsed * proj.work_total) : c.sell;
+      const locProjCost = proj ? (c.cost / proj.work_elapsed * proj.work_total) : c.cost;
+      const locProjGP = locProjSell - locProjCost;
+      const locProjGPpct = locProjSell ? (locProjGP/locProjSell*100) : 0;
+
+      rSell+=c.sell; rCost+=c.cost; rPrevSell+=p.sell; rPrevCost+=p.cost; rPYSell+=py.sell; rPYCost+=py.cost;
+      varData.push({loc, varD, varP});
+
+      regionRows += `<tr>
+        <td style="padding-left:24px">${loc}</td>
+        <td class="num">${fmt(p.sell)}</td><td class="num">${fmt(pGP)}</td><td class="num">${pMargin.toFixed(1)}%</td>
+        <td class="num">${fmt(py.sell)}</td><td class="num">${fmt(pyGP)}</td><td class="num">${pyMargin.toFixed(1)}%</td>
+        <td class="num" style="font-weight:600">${fmt(c.sell)}</td><td class="num">${fmt(cGP)}</td><td class="num">${cMargin.toFixed(1)}%</td>
+        <td class="num">${fmt(locProjSell)}</td><td class="num">${fmt(locProjGP)}</td><td class="num">${locProjGPpct.toFixed(1)}%</td>
+        <td class="num ${varD>=0?'pos':'neg'}">${fmt(varD)}</td>
+        <td class="num ${varP>=0?'pos':'neg'}">${pct(varP)}</td>
+      </tr>`;
+    });
+
+    // Skip entire region if no locations had data
+    if(rSell === 0 && rPrevSell === 0 && rPYSell === 0) continue;
+
+    // Add region header + location rows
+    tbody.innerHTML += `<tr class="region-header"><td colspan="15">${region}</td></tr>`;
+    tbody.innerHTML += regionRows;
+
+    const rGP = rSell - rCost;
+    const rPrevGP = rPrevSell - rPrevCost;
+    const rPYGP = rPYSell - rPYCost;
+    const rComp = cmpMode === 'prev_year' ? rPYSell : rPrevSell;
+    const rVar = rSell - rComp;
+    const rVarP = rComp ? (rVar/rComp*100) : 0;
+    const rProjSell = proj ? (rSell / proj.work_elapsed * proj.work_total) : rSell;
+    const rProjCost = proj ? (rCost / proj.work_elapsed * proj.work_total) : rCost;
+    const rProjGP = rProjSell - rProjCost;
+    const rProjGPpct = rProjSell ? (rProjGP/rProjSell*100) : 0;
+
+    tbody.innerHTML += `<tr class="subtotal">
+      <td>Subtotal ${region}</td>
+      <td class="num">${fmt(rPrevSell)}</td><td class="num">${fmt(rPrevGP)}</td><td class="num">${rPrevSell?(rPrevGP/rPrevSell*100).toFixed(1):'0.0'}%</td>
+      <td class="num">${fmt(rPYSell)}</td><td class="num">${fmt(rPYGP)}</td><td class="num">${rPYSell?(rPYGP/rPYSell*100).toFixed(1):'0.0'}%</td>
+      <td class="num">${fmt(rSell)}</td><td class="num">${fmt(rGP)}</td><td class="num">${rSell?(rGP/rSell*100).toFixed(1):'0.0'}%</td>
+      <td class="num">${fmt(rProjSell)}</td><td class="num">${fmt(rProjGP)}</td><td class="num">${rProjGPpct.toFixed(1)}%</td>
+      <td class="num ${rVar>=0?'pos':'neg'}">${fmt(rVar)}</td>
+      <td class="num ${rVarP>=0?'pos':'neg'}">${pct(rVarP)}</td>
+    </tr>`;
+
+    grandSell+=rSell; grandCost+=rCost; grandPrevSell+=rPrevSell; grandPrevCost+=rPrevCost; grandPYSell+=rPYSell; grandPYCost+=rPYCost;
+  }
+
+  const gGP = grandSell - grandCost;
+  const gPrevGP = grandPrevSell - grandPrevCost;
+  const gPYGP = grandPYSell - grandPYCost;
+  const gComp = cmpMode === 'prev_year' ? grandPYSell : grandPrevSell;
+  const gVar = grandSell - gComp;
+  const gVarP = gComp ? (gVar/gComp*100) : 0;
+  const gProjSell = proj ? (grandSell / proj.work_elapsed * proj.work_total) : grandSell;
+  const gProjCost = proj ? (grandCost / proj.work_elapsed * proj.work_total) : grandCost;
+  const gProjGP = gProjSell - gProjCost;
+  const gProjGPpct = gProjSell ? (gProjGP/gProjSell*100) : 0;
+
+  tbody.innerHTML += `<tr class="grand-total">
+    <td>TOTAL GENERAL</td>
+    <td class="num">${fmt(grandPrevSell)}</td><td class="num">${fmt(gPrevGP)}</td><td class="num">${grandPrevSell?(gPrevGP/grandPrevSell*100).toFixed(1):'0.0'}%</td>
+    <td class="num">${fmt(grandPYSell)}</td><td class="num">${fmt(gPYGP)}</td><td class="num">${grandPYSell?(gPYGP/grandPYSell*100).toFixed(1):'0.0'}%</td>
+    <td class="num">${fmt(grandSell)}</td><td class="num">${fmt(gGP)}</td><td class="num">${grandSell?(gGP/grandSell*100).toFixed(1):'0.0'}%</td>
+    <td class="num">${fmt(gProjSell)}</td><td class="num">${fmt(gProjGP)}</td><td class="num">${gProjGPpct.toFixed(1)}%</td>
+    <td class="num ${gVar>=0?'pos':'neg'}">${fmt(gVar)}</td>
+    <td class="num ${gVarP>=0?'pos':'neg'}">${pct(gVarP)}</td>
+  </tr>`;
+
+  // KPIs for comparativo
+  document.getElementById('kpis2').innerHTML = `
+    <div class="kpi teal"><div class="label">Venta Total ${pLabel}</div><div class="value">${fmtK(grandSell)}</div></div>
+    <div class="kpi yellow"><div class="label">GP$ Total ${pLabel}</div><div class="value">${fmtK(gGP)}</div></div>
+    <div class="kpi green"><div class="label">Margen General</div><div class="value">${grandSell?(gGP/grandSell*100).toFixed(1):'0'}%</div></div>
+    <div class="kpi cyan"><div class="label">Proy. Venta Mes</div><div class="value">${proj ? fmtK(gProjSell) : '-'}</div>
+      <div class="change">${proj ? proj.work_elapsed+'/'+proj.work_total+' dias lab.' : ''}</div></div>
+    <div class="kpi yellow"><div class="label">Proy. GP$ Mes</div><div class="value">${proj ? fmtK(gProjGP) : '-'}</div>
+      <div class="change">${proj ? gProjGPpct.toFixed(1)+'% margen' : ''}</div></div>
+    <div class="kpi ${gVar>=0?'green':'red'}"><div class="label">Var vs Comp ${pLabel}</div><div class="value">${fmtK(gVar)}</div>
+      <div class="change ${gVarP>=0?'up':'down'}">${pct(gVarP)}</div></div>
+  `;
+
+  // Variation bar chart
+  destroyChart('varLoc');
+  const vd = varData.filter(v => v.varD !== 0).sort((a,b) => b.varD - a.varD);
+  charts.varLoc = new Chart(document.getElementById('chartVarLoc'), {
+    type: 'bar',
+    data: {
+      labels: vd.map(v => v.loc),
+      datasets: [{
+        label: 'Var $',
+        data: vd.map(v => v.varD),
+        backgroundColor: vd.map(v => v.varD >= 0 ? 'rgba(34,197,94,.7)' : 'rgba(239,68,68,.7)'),
+        borderRadius: 3
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>ctx.label+': '+fmt(ctx.raw)+' ('+pct(vd[ctx.dataIndex].varP)+')'}}
+      },
+      scales:{
+        x:{ticks:{color:'#64748b',font:{size:10},maxRotation:45},grid:{color:'#e2e8f0'}},
+        y:{ticks:{color:'#475569',callback:v=>fmtK(v)},grid:{color:'#e2e8f0'}}
+      }
+    }
+  });
+  document.getElementById('chartVarLoc').parentElement.style.height='300px';
+}
+
+function updateClientes(m) {
+  document.getElementById('tblCustTitle').textContent = 'Ranking de Clientes — ' + mLabel(m);
+  const custs = D.monthly_customers[m] || [];
+  const tbody = document.querySelector('#tblCustomers tbody');
+  tbody.innerHTML = '';
+  custs.forEach((c,i) => {
+    tbody.innerHTML += `<tr>
+      <td>${i+1}</td><td>${c.name}</td><td>${c.account}</td><td>${c.location}</td>
+      <td class="num" style="font-weight:600">${fmt(c.sell)}</td><td class="num">${fmt(c.cost)}</td>
+      <td class="num ${c.profit>=0?'pos':'neg'}">${fmt(c.profit)}</td><td class="num">${c.margin_pct.toFixed(1)}%</td>
+      <td class="num">${c.transactions}</td>
+    </tr>`;
+  });
+
+  // Customer bar chart
+  destroyChart('custBar');
+  const top10 = custs.slice(0,10);
+  charts.custBar = new Chart(document.getElementById('chartCustBar'), {
+    type: 'bar',
+    data: {
+      labels: top10.map(c => c.name.length>20 ? c.name.slice(0,18)+'...' : c.name),
+      datasets: [
+        {label:'Venta', data: top10.map(c => c.sell), backgroundColor:'#3b82f6', borderRadius:3},
+        {label:'GP$', data: top10.map(c => c.profit), backgroundColor:'#22c55e', borderRadius:3}
+      ]
+    },
+    options: {
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#64748b',font:{size:10}}}},
+      scales:{
+        x:{ticks:{color:'#475569',callback:v=>fmtK(v)},grid:{color:'#e2e8f0'}},
+        y:{ticks:{color:'#64748b',font:{size:10}},grid:{display:false}}
+      }
+    }
+  });
+  document.getElementById('chartCustBar').parentElement.style.height=Math.max(300,top10.length*35)+'px';
+
+  // Customer concentration chart
+  destroyChart('custConc');
+  const totalSell = custs.reduce((s,c)=>s+c.sell,0);
+  let cumPct = 0;
+  const concData = custs.slice(0,25).map((c,i) => {
+    cumPct += (c.sell/totalSell*100);
+    return cumPct;
+  });
+  charts.custConc = new Chart(document.getElementById('chartCustConc'), {
+    type: 'line',
+    data: {
+      labels: custs.slice(0,25).map((_,i)=>'#'+(i+1)),
+      datasets: [{
+        label:'% Acumulado de Venta',
+        data: concData,
+        borderColor:'#f59e0b',
+        backgroundColor:'rgba(245,158,11,.1)',
+        fill:true,
+        pointRadius:3,
+        pointBackgroundColor:'#f59e0b',
+        borderWidth:2
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'#e2e8f0'}},
+        y:{min:0,max:100,ticks:{color:'#475569',callback:v=>v+'%'},grid:{color:'#e2e8f0'}}
+      }
+    }
+  });
+  document.getElementById('chartCustConc').parentElement.style.height='300px';
+
+  // Historic customers table
+  const htbody = document.querySelector('#tblCustHist tbody');
+  htbody.innerHTML = '';
+  D.top_customers.forEach((c,i) => {
+    htbody.innerHTML += `<tr>
+      <td>${i+1}</td><td>${c.name}</td><td>${c.location}</td>
+      <td class="num">${fmt(c.sell)}</td><td class="num">${fmt(c.cost)}</td>
+      <td class="num">${c.margin_pct.toFixed(1)}%</td><td class="num">${c.transactions.toLocaleString('es-MX')}</td>
+    </tr>`;
+  });
+}
+
+function updateLineas(m) {
+  document.getElementById('tblLinesTitle').textContent = 'Lineas de Producto — ' + mLabel(m);
+  const lcData = D.top_line_codes[m] || [];
+
+  const tbody = document.querySelector('#tblLines tbody');
+  tbody.innerHTML = '';
+  lcData.forEach((lc,i) => {
+    const gp = lc.sell - lc.cost;
+    tbody.innerHTML += `<tr>
+      <td>${i+1}</td><td style="font-weight:600">${lc.line_code}</td>
+      <td class="num">${fmt(lc.sell)}</td><td class="num">${fmt(lc.cost)}</td>
+      <td class="num ${gp>=0?'pos':'neg'}">${fmt(gp)}</td><td class="num">${lc.margin_pct.toFixed(1)}%</td>
+      <td class="num">${lc.qty.toLocaleString('es-MX')}</td>
+    </tr>`;
+  });
+
+  // Lines bar chart
+  destroyChart('linesBar');
+  const top15 = lcData.slice(0,15);
+  charts.linesBar = new Chart(document.getElementById('chartLinesBar'), {
+    type: 'bar',
+    data: {
+      labels: top15.map(l => l.line_code),
+      datasets: [
+        {label:'Venta', data: top15.map(l => l.sell), backgroundColor:'#3b82f6', borderRadius:3},
+        {label:'Costo', data: top15.map(l => l.cost), backgroundColor:'rgba(148,163,184,.5)', borderRadius:3}
+      ]
+    },
+    options: {
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#64748b',font:{size:10}}}},
+      scales:{
+        x:{ticks:{color:'#475569',callback:v=>fmtK(v)},grid:{color:'#e2e8f0'}},
+        y:{ticks:{color:'#64748b',font:{size:10}},grid:{display:false}}
+      }
+    }
+  });
+  document.getElementById('chartLinesBar').parentElement.style.height=Math.max(350, top15.length*28)+'px';
+
+  // Lines margin chart
+  destroyChart('linesMargin');
+  const lmData = lcData.slice(0,15).sort((a,b) => b.margin_pct - a.margin_pct);
+  charts.linesMargin = new Chart(document.getElementById('chartLinesMargin'), {
+    type: 'bar',
+    data: {
+      labels: lmData.map(l => l.line_code),
+      datasets: [{
+        label:'Margen %', data: lmData.map(l => l.margin_pct),
+        backgroundColor: lmData.map(l => l.margin_pct >= 30 ? '#22c55e' : l.margin_pct >= 20 ? '#f59e0b' : '#ef4444'),
+        borderRadius:3
+      }]
+    },
+    options: {
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{min:0,max:60,ticks:{color:'#475569',callback:v=>v+'%'},grid:{color:'#e2e8f0'}},
+        y:{ticks:{color:'#64748b',font:{size:10}},grid:{display:false}}
+      }
+    }
+  });
+  document.getElementById('chartLinesMargin').parentElement.style.height=Math.max(350, lmData.length*28)+'px';
+
+  // Historic lines table
+  const htbody = document.querySelector('#tblLinesHist tbody');
+  htbody.innerHTML = '';
+  D.line_code_totals.forEach((lc,i) => {
+    htbody.innerHTML += `<tr>
+      <td>${i+1}</td><td style="font-weight:600">${lc.line_code}</td>
+      <td class="num">${fmtK(lc.sell)}</td><td class="num">${fmtK(lc.cost)}</td>
+      <td class="num">${lc.margin_pct.toFixed(1)}%</td><td class="num">${lc.qty.toLocaleString('es-MX')}</td>
+    </tr>`;
+  });
+}
+
+function updateDaily(m, cmpMonth, cmpMode) {
+  const [yr, mo] = m.split('-');
+  const daysInMonth = new Date(parseInt(yr), parseInt(mo), 0).getDate();
+
+  // Collect daily data for selected month
+  const dailyArr = [];
+  let cumSell = 0;
+  for(let d=1; d<=daysInMonth; d++) {
+    const key = yr+'-'+mo+'-'+String(d).padStart(2,'0');
+    const dd = D.daily_sales[key];
+    if(dd) { cumSell += dd.sell; dailyArr.push({day:d, sell:dd.sell, cost:dd.cost, cum:cumSell}); }
+    else { dailyArr.push({day:d, sell:0, cost:0, cum:cumSell}); }
+  }
+
+  // Collect daily data for comparison month
+  const [cy, cmo] = cmpMonth.split('-');
+  const cDaysInMonth = new Date(parseInt(cy), parseInt(cmo), 0).getDate();
+  const compArr = [];
+  let compCum = 0;
+  for(let d=1; d<=cDaysInMonth; d++) {
+    const key = cy+'-'+cmo+'-'+String(d).padStart(2,'0');
+    const dd = D.daily_sales[key];
+    if(dd) { compCum += dd.sell; compArr.push({day:d, sell:dd.sell, cum:compCum}); }
+    else { compArr.push({day:d, sell:0, cum:compCum}); }
+  }
+
+  // KPIs for daily
+  const activeDays = dailyArr.filter(d => d.sell > 0).length;
+  const avgDaily = activeDays ? cumSell / activeDays : 0;
+  const maxDay = dailyArr.reduce((mx, d) => d.sell > mx.sell ? d : mx, {sell:0,day:0});
+  const proj = getProjection(m);
+
+  document.getElementById('kpis3').innerHTML = `
+    <div class="kpi"><div class="label">Dias con Ventas</div><div class="value">${activeDays} / ${daysInMonth}</div></div>
+    <div class="kpi green"><div class="label">Promedio Diario</div><div class="value">${fmtK(avgDaily)}</div></div>
+    <div class="kpi blue"><div class="label">Mejor Dia</div><div class="value">${fmtK(maxDay.sell)}</div>
+      <div class="change">Dia ${maxDay.day}</div></div>
+    <div class="kpi purple"><div class="label">Acumulado Mes</div><div class="value">${fmtK(cumSell)}</div></div>
+    <div class="kpi cyan"><div class="label">Proyeccion al Cierre</div><div class="value">${proj ? fmtK(proj.sell) : '-'}</div>
+      <div class="change">${proj ? proj.work_elapsed+'/'+proj.work_total+' dias lab.' : ''}</div></div>
+  `;
+
+  // Daily chart with bar + cumulative line
+  destroyChart('daily');
+  charts.daily = new Chart(document.getElementById('chartDaily'), {
+    type: 'bar',
+    data: {
+      labels: dailyArr.map(d => d.day),
+      datasets: [
+        {label:'Venta Diaria', data: dailyArr.map(d => d.sell), backgroundColor:'rgba(59,130,246,.7)', borderRadius:2, order:2},
+        {label:'Acumulado', data: dailyArr.map(d => d.cum), type:'line', borderColor:'#f59e0b', backgroundColor:'transparent', yAxisID:'y1', pointRadius:0, borderWidth:2, order:1}
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#64748b',font:{size:10}}}},
+      scales:{
+        x:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'#e2e8f0'}},
+        y:{ticks:{color:'#475569',callback:v=>fmtK(v)},grid:{color:'#e2e8f0'}},
+        y1:{position:'right',ticks:{color:'#f59e0b',callback:v=>fmtK(v)},grid:{display:false}}
+      }
+    }
+  });
+  document.getElementById('chartDaily').parentElement.style.height='280px';
+
+  // Daily comparison chart (cumulative current vs comparison)
+  destroyChart('dailyComp');
+  const maxDays = Math.max(dailyArr.length, compArr.length);
+  const labels = Array.from({length:maxDays}, (_,i) => i+1);
+  charts.dailyComp = new Chart(document.getElementById('chartDailyComp'), {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {label: mLabel(m), data: dailyArr.map(d => d.cum), borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,.15)', fill:true, pointRadius:0, borderWidth:2},
+        {label: mLabel(cmpMonth), data: compArr.map(d => d.cum), borderColor:'#94a3b8', backgroundColor:'transparent', borderDash:[5,5], pointRadius:0, borderWidth:2}
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#64748b',font:{size:11}}}},
+      scales:{
+        x:{title:{display:true,text:'Dia del mes',color:'#475569'},ticks:{color:'#64748b'},grid:{color:'#e2e8f0'}},
+        y:{ticks:{color:'#475569',callback:v=>fmtK(v)},grid:{color:'#e2e8f0'}}
+      }
+    }
+  });
+  document.getElementById('chartDailyComp').parentElement.style.height='280px';
+}
+
+selMonth.addEventListener('change', update);
+selLoc.addEventListener('change', update);
+selCmp.addEventListener('change', update);
+update();
+}
+
+loadDashboard();
+</script>
+</body>
+</html>
